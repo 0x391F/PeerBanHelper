@@ -105,7 +105,8 @@ public final class BiglyBT extends AbstractDownloader {
         return List.of(DownloaderFeatureFlag.READ_PEER_PROTOCOLS,
                 DownloaderFeatureFlag.UNBAN_IP,
                 DownloaderFeatureFlag.TRAFFIC_STATS,
-                DownloaderFeatureFlag.LIVE_UPDATE_BT_PROTOCOL_PORT);
+                DownloaderFeatureFlag.LIVE_UPDATE_BT_PROTOCOL_PORT,
+                DownloaderFeatureFlag.RANGE_BAN_IP);
     }
 
     @Override

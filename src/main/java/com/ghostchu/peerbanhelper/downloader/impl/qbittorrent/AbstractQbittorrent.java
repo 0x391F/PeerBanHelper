@@ -51,6 +51,7 @@ public abstract class AbstractQbittorrent extends AbstractDownloader {
     protected final QBittorrentConfig config;
     protected final Cache<String, TorrentProperties> torrentPropertiesCache;
     protected final ExecutorService parallelService = Executors.newWorkStealingPool();
+    protected Semver lastSemver = new Semver("0.0.0");
 
     public AbstractQbittorrent(String id, QBittorrentConfig config, AlertManager alertManager, HTTPUtil httpUtil, NatAddressProvider natAddressProvider) {
         super(id, alertManager, natAddressProvider);
@@ -126,6 +127,7 @@ public abstract class AbstractQbittorrent extends AbstractDownloader {
                 if (response.isSuccessful() && isLoggedIn()) {
                     updatePreferences();
                     Semver semver = getDownloaderVersion();
+                    this.lastSemver = semver;
                     if (semver.isGreaterThanOrEqualTo(new Semver("4.5.0")) || ExternalSwitch.parseBoolean("pbh.downloader.qBittorrent.bypassVersionCheck", false)) {
                         return new DownloaderLoginResult(DownloaderLoginResult.Status.SUCCESS, new TranslationComponent(Lang.STATUS_TEXT_OK));
                     } else {
@@ -294,7 +296,14 @@ public abstract class AbstractQbittorrent extends AbstractDownloader {
 
     @Override
     public @NotNull List<DownloaderFeatureFlag> getFeatureFlags() {
-        return List.of(DownloaderFeatureFlag.UNBAN_IP, DownloaderFeatureFlag.TRAFFIC_STATS, DownloaderFeatureFlag.LIVE_UPDATE_BT_PROTOCOL_PORT);
+        List<DownloaderFeatureFlag> flags = new ArrayList<>();
+        flags.add(DownloaderFeatureFlag.UNBAN_IP);
+        flags.add(DownloaderFeatureFlag.TRAFFIC_STATS);
+        flags.add(DownloaderFeatureFlag.LIVE_UPDATE_BT_PROTOCOL_PORT);
+        if (lastSemver.isGreaterThanOrEqualTo("5.3.0")) {
+            flags.add(DownloaderFeatureFlag.RANGE_BAN_IP);
+        }
+        return flags;
     }
 
     @Override
@@ -597,9 +606,11 @@ public abstract class AbstractQbittorrent extends AbstractDownloader {
         Map<String, StringJoiner> banTasks = new HashMap<>();
         added.forEach(p -> {
             StringJoiner joiner = banTasks.getOrDefault(p.getTorrent().getHash(), new StringJoiner("|"));
-            joiner.add(p.getPeer().getRawIp());
-            // todo change this with compatibility check after qbiitorrent merge it
-            // joiner.add(remapBanListAddress(p.getPeer().getAddress().getAddress()).toNormalizedString());
+            if (getFeatureFlags().contains(DownloaderFeatureFlag.RANGE_BAN_IP)) {
+                joiner.add(remapBanListAddress(p.getPeer().getAddress().getAddress()).toNormalizedString());
+            } else {
+                joiner.add(p.getPeer().getRawIp());
+            }
             banTasks.put(p.getTorrent().getHash(), joiner);
         });
         banTasks.forEach((hash, peers) -> {
@@ -630,31 +641,33 @@ public abstract class AbstractQbittorrent extends AbstractDownloader {
 
     protected void setBanListFull(Collection<IPAddress> bannedAddresses) {
         // todo change this with compatibility check after qbiitorrent merge it
-//        String banStr = bannedAddresses.stream()
-//                .map(ipAddr -> remapBanListAddress(ipAddr).toNormalizedString())
-//                .distinct()
-//                .collect(Collectors.joining("\n"));
-
-        StringJoiner joiner = new StringJoiner("\n");
-        bannedAddresses.stream().distinct().forEach(ipAddr -> {
-            joiner.add(ipAddr.toNormalizedString());
-            if (ipAddr.isIPv4() && ipAddr.isIPv6Convertible()) {
-                inet.ipaddr.Address ipv6 = ipAddr.toIPv6();
-                if (ipv6 != null) {
-                    joiner.add(ipv6.toNormalizedString());
+        String banStr;
+        if(getFeatureFlags().contains(DownloaderFeatureFlag.RANGE_BAN_IP)) {banStr = bannedAddresses.stream()
+                .map(ipAddr -> remapBanListAddress(ipAddr).toNormalizedString())
+                .distinct()
+                .collect(Collectors.joining("\n"));
+        }else {
+            StringJoiner joiner = new StringJoiner("\n");
+            bannedAddresses.stream().distinct().forEach(ipAddr -> {
+                joiner.add(ipAddr.toNormalizedString());
+                if (ipAddr.isIPv4() && ipAddr.isIPv6Convertible()) {
+                    inet.ipaddr.Address ipv6 = ipAddr.toIPv6();
+                    if (ipv6 != null) {
+                        joiner.add(ipv6.toNormalizedString());
+                    }
                 }
-            }
-            if (ipAddr.isIPv6() && ipAddr.isIPv4Convertible()) {
-                Address ipv4 = ipAddr.toIPv4();
-                if (ipv4 != null) {
-                    joiner.add(ipv4.toNormalizedString());
+                if (ipAddr.isIPv6() && ipAddr.isIPv4Convertible()) {
+                    Address ipv4 = ipAddr.toIPv4();
+                    if (ipv4 != null) {
+                        joiner.add(ipv4.toNormalizedString());
+                    }
                 }
-            }
-        });
-
+            });
+            banStr = joiner.toString();
+        }
 
         FormBody formBody = new FormBody.Builder()
-                .add("json", JsonUtil.getGson().toJson(Map.of("banned_IPs", joiner.toString())))
+                .add("json", JsonUtil.getGson().toJson(Map.of("banned_IPs", banStr)))
                 .build();
 
         try {

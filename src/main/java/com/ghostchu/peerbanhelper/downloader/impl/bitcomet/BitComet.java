@@ -106,6 +106,7 @@ public final class BitComet extends AbstractDownloader {
         if (serverVersion.isGreaterThanOrEqualTo("2.20")) {
             flags.add(DownloaderFeatureFlag.TRAFFIC_STATS);
         }
+        flags.add(DownloaderFeatureFlag.RANGE_BAN_IP);
         return flags;
     }
 
