@@ -56,10 +56,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.management.ManagementFactory;
 import java.math.MathContext;
-import java.net.ConnectException;
-import java.net.SocketException;
-import java.net.SocketTimeoutException;
-import java.net.UnknownHostException;
+import java.net.*;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Locale;
@@ -242,6 +239,7 @@ public class Main {
             sentryOptions.addIgnoredExceptionForType(SocketException.class);
             sentryOptions.addIgnoredExceptionForType(ConnectException.class);
             sentryOptions.addIgnoredExceptionForType(UnknownHostException.class);
+            sentryOptions.addIgnoredExceptionForType(NoRouteToHostException.class);
         });
     }
 
