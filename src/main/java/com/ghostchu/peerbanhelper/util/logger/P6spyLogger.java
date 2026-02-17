@@ -52,8 +52,11 @@ public class P6spyLogger extends FormattedLogger {
             event.setExtra("timestamp", now);
             event.setExtra("prepared", prepared);
             event.setExtra("stacktrace", MiscUtil.getAllThreadTrace());
-            event.setExtra("recent_write_queries", String.join("\n", writeSqlRingQueue));
-            event.setExtra("recent_all_queries", String.join("\n", sqlRingQueue));
+            if (ExternalSwitch.parseBoolean("pbh.p6spy.logsqlwithsentry", false)) { // do not upload sql by default
+                event.setExtra("sql", sql);
+                event.setExtra("recent_write_queries", String.join("\n", writeSqlRingQueue));
+                event.setExtra("recent_all_queries", String.join("\n", sqlRingQueue));
+            }
             event.setThreads(SentryUtils.getSentryThreads());
             Sentry.captureEvent(event);
         }
