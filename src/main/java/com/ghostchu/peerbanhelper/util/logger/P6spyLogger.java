@@ -11,6 +11,7 @@ import io.sentry.SentryEvent;
 import io.sentry.protocol.Message;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 @Slf4j
 public class P6spyLogger extends FormattedLogger {
@@ -28,17 +29,19 @@ public class P6spyLogger extends FormattedLogger {
     }
 
     @Override
-    public void logSQL(int connectionId, String now, long elapsed, Category category, String prepared, String sql, String url) {
+    public void logSQL(int connectionId, String now, long elapsed, Category category, @Nullable String prepared, String sql, String url) {
         String loggingSQL = "[" + category.getName() + "] " + prepared + " | " + elapsed + " ms";
         sqlRingQueue.add(loggingSQL);
-        if (!prepared.startsWith("SELECT") && (prepared.startsWith("INSERT") // 这里检查一个 SELECT 以便快速命中绝大部分查询，避免遍历所有条件
-                || prepared.startsWith("UPDATE")
-                || prepared.startsWith("DELETE")
-                || prepared.startsWith("ALTER")
-                || prepared.startsWith("CREATE")
-                || prepared.startsWith("DROP")
-                || prepared.startsWith("TRUNCATE"))) {
-            writeSqlRingQueue.add(loggingSQL);
+        if(prepared != null) {
+            if (!prepared.startsWith("SELECT") && (prepared.startsWith("INSERT") // 这里检查一个 SELECT 以便快速命中绝大部分查询，避免遍历所有条件
+                    || prepared.startsWith("UPDATE")
+                    || prepared.startsWith("DELETE")
+                    || prepared.startsWith("ALTER")
+                    || prepared.startsWith("CREATE")
+                    || prepared.startsWith("DROP")
+                    || prepared.startsWith("TRUNCATE"))) {
+                writeSqlRingQueue.add(loggingSQL);
+            }
         }
         //super.logSQL(connectionId, now, elapsed, category, prepared, sql, url);
         if (category == Category.OUTAGE) {
