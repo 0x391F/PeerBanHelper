@@ -25,6 +25,7 @@
         <module name="jdk.unsupported" />
         <module name="java.net.http" />
         <module name="java.management" />
+        <module name="jdk.management" />
       </modules>
     </jreBundles>
   </application>
