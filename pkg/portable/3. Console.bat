@@ -17,6 +17,7 @@ set "JAVA_EXEC=%JAVA_BIN%\java.exe"
  --enable-native-access=ALL-UNNAMED^
  -Djdk.attach.allowAttachSelf=true^
  -XX:MaxRAMPercentage=85.0^
+ -XX:SoftMaxHeapSize=386M^
  -XX:+UseZGC^
  -XX:ZUncommitDelay=1^
  -Xss512k^
